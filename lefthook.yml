@@ -1,0 +1,27 @@
+assert_lefthook_installed: true
+
+remotes:
+  - git_url: https://github.com/gitleaks/gitleaks
+    ref: v8.16.1
+
+pre-commit:
+  commands:
+    tests:
+      run: poetry run coverage run
+
+## Use this to build commit messages
+#prepare-commit-msg:
+#  commands:
+#    commitzen:
+#      interactive: true
+#      run: yarn run commitizen
+#      env:
+#        LEFTHOOK: 0
+#    tests:
+#      run: poetry run coverage run
+#
+## Use this to validate commit messages
+#commit-msg:
+#  commands:
+#    "lint commit message":
+#      run: yarn run commitlint --edit {1}
