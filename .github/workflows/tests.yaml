@@ -1,0 +1,71 @@
+name: PyTest Job
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      #  - name: Generate GitHub App Token
+      #    uses: actions/create-github-app-token@v1
+      #    id: app_token
+      #    with:
+      #      app-id: ${{ vars.APP_ID }}
+      #      owner: ${{ github.repository_owner }}
+      #      repositories: ${{ github.event.repository.name }}
+      #      private-key: ${{ secrets.PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        #  token: ${{ steps.app_token.outputs.token }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: 'pyproject.toml'
+          check-latest: true
+          cache: pip
+          cache-dependency-path: |
+            poetry.lock
+            pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip poetry
+          poetry export --with=dev -f requirements.txt --output requirements.txt --without-hashes
+          pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          REPORT_OUTPUT: md_report.md
+        shell: bash
+        run: |
+          echo "REPORT_FILE=${REPORT_OUTPUT}" >> "$GITHUB_ENV"
+          pytest -s -vv --cov --junitxml=junit.xml --md-report --md-report-flavor github --md-report-output "$REPORT_OUTPUT"
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Output reports to the job summary when tests fail
+        shell: bash
+        run: |
+          if [ -f "$REPORT_FILE" ]; then
+            echo "<details><summary>Failed Test Report</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat "$REPORT_FILE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+          fi

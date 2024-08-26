@@ -1,0 +1,26 @@
+name: gitleaks
+on: [ pull_request, push, workflow_dispatch ]
+jobs:
+  scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      # - name: Generate GitHub App Token
+      #   uses: actions/create-github-app-token@v1
+      #   id: app_token
+      #   with:
+      #     app-id: ${{ vars.APP_ID }}
+      #     owner: ${{ github.repository_owner }}
+      #     repositories: ${{ github.event.repository.name }}
+      #     private-key: ${{ secrets.PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # token: ${{ steps.app_token.outputs.token }}
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}}

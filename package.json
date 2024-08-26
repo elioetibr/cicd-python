@@ -1,0 +1,12 @@
+{
+  "author": "Elio Severo Junior",
+  "devDependencies": {
+    "@commitlint/cli": "^18.4.2",
+    "@commitlint/config-conventional": "^18.4.2"
+  },
+  "email": "elio@elio.eti.br",
+  "license": "UNLICENSED",
+  "name": "reusable-workflow",
+  "private": true,
+  "version": "0.1.0"
+}
