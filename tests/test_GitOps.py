@@ -2,10 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-from dataclasses import asdict
 from unittest import TestCase
 
-from cicd.GitOps import GitOpsManager, GitOps, Slack, Environments, AwsEnvironment, Environment, Manifest
+from cicd.GitOps import GitOpsManager, GitOps, Slack, Environments, Environment, Application
 from cicd.Utils import recursive_sort_dict_by_key
 from tests.Fixtures import TEST_DATA
 
@@ -73,10 +72,22 @@ class TestGitOps(TestCase):
         }
         self.assertDictEqual(Environment.from_dict(test_data).to_dict(), test_data)
 
-
-    # def test_manifest_from_dict(self):
-    #     manifest = Manifest.from_dict(self.test_data)
-    #     self.assertDictEqual(manifest.to_dict(), self.test_data)
+    def test_manifest_from_dict(self):
+        test_data = recursive_sort_dict_by_key({
+            "app_of_apps": "meta-app",
+            "app_of_apps_service_name": "meta-service",
+            "app_repo": "https://repo.url",
+            "dockerfile": "Dockerfile",
+            "ecr_repository_name": "repo-name",
+            "enable_tests": True,
+            "helm_chart_repo": "chart-repo",
+            "helm_chart_repo_path": "charts/test-chart",
+            "is_mono_repo": False,
+            "name": "GitOps App",
+            "service": "some-service",
+        })
+        manifest = Application.from_dict(test_data)
+        self.assertDictEqual(manifest.to_dict(), test_data)
 
 
 # class TestApplication(TestCase):
@@ -89,7 +100,7 @@ class TestGitOps(TestCase):
 #             "ecr_repository_name": "devops",
 #             "enable_tests": True,
 #             "helm_chart_repo": "devops-helm-charts",
-#             "helm_chart_service_name": "devops",
+#             "helm_chart_repo_path": "devops",
 #             "is_mono_repo": False,
 #             "name": "devops",
 #             "service": "devops",
@@ -101,8 +112,8 @@ class TestGitOps(TestCase):
 #         # self.assertEqual(self.test_assertion.to_dict(), self.test_data)
 #         print()
 
-    # def test_from_dict(self):
-    #     self.assertEqual(asdict(Paths.from_dict(self.test_data)), self.test_data)
+# def test_from_dict(self):
+#     self.assertEqual(asdict(Paths.from_dict(self.test_data)), self.test_data)
 
 
 # class TestAwsAccount(TestCase):

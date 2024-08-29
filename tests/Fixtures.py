@@ -14,7 +14,7 @@ TEST_DATA = recursive_sort_dict_by_key({
     "ecr_repository_name": "repo-name",
     "enable_tests": True,
     "helm_chart_repo": "chart-repo",
-    "helm_chart_service_name": "chart-service",
+    "helm_chart_repo_path": "charts/test-chart",
     "is_mono_repo": False,
     "name": "GitOps App",
     "service": "some-service",

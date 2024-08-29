@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import inspect
 import json
 import re
-from typing import Any, List, TypeVar, Type, cast, Callable
+from functools import partial
 from types import (
     BuiltinFunctionType,
     BuiltinMethodType,
@@ -13,9 +14,9 @@ from types import (
     ModuleType,
     TracebackType,
 )
-from functools import partial
+from typing import Any, TypeVar
+
 from toolz import curry
-import inspect
 
 T = TypeVar("T")
 

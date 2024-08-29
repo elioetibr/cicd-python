@@ -1,4 +1,4 @@
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from typing import Any, List, TypeVar, Type, cast, Callable, Dict
 
 from cicd.Utils import recursive_sort_dict_by_key
@@ -29,77 +29,6 @@ def to_class(c: Type[T], x: Any) -> dict:
 def from_list(f: Callable[[Any], T], x: Any) -> List[T]:
     assert isinstance(x, list)
     return [f(y) for y in x]
-
-
-@dataclass
-class Manifest:
-    app_of_apps: str
-    app_of_apps_service_name: str
-    app_repo: str
-    dockerfile: str
-    ecr_repository_name: str
-    enable_tests: bool
-    helm_chart_repo: str
-    helm_chart_repo_path: str
-    is_mono_repo: bool
-    name: str
-    service: str
-
-
-    def __init__(self, properties: Dict[str, Any]):
-        if properties is None:
-            self.__class__ = None
-        class_fields = fields(self)
-        for key, value in properties.items():
-            setattr(self, key, value)
-
-    @staticmethod
-    def from_dict(obj: Any) -> 'Manifest':
-        assert isinstance(obj, dict)
-        class_fields = fields(Manifest)
-        manifest: Dict[str, Any] = {}
-        for idx, field in enumerate(class_fields):
-            manifest[field.name] = Manifest.from_dict(obj[field.name])
-        return Manifest(manifest)
-
-    def to_dict(self) -> dict:
-        result: dict = {}
-        for key, value in self.__dict__.items():
-            if key.startswith('__') or key.startswith('_'):
-                continue
-            result[key] = to_class(Manifest, value)
-        return result
-
-    # @staticmethod
-    # def from_dict(obj: Any) -> 'Manifest':
-    #     assert isinstance(obj, dict)
-    #     app_of_apps = from_str(obj.get("app_of_apps"))
-    #     app_of_apps_service_name = from_str(obj.get("app_of_apps_service_name"))
-    #     app_repo = from_str(obj.get("app_repo"))
-    #     dockerfile = from_str(obj.get("dockerfile"))
-    #     ecr_repository_name = from_str(obj.get("ecr_repository_name"))
-    #     enable_tests = from_bool(obj.get("enable_tests"))
-    #     helm_chart_repo = from_str(obj.get("helm_chart_repo"))
-    #     helm_chart_repo_path = from_str(obj.get("helm_chart_repo_path", None))
-    #     is_mono_repo = from_bool(obj.get("is_mono_repo"))
-    #     name = from_str(obj.get("name"))
-    #     service = from_str(obj.get("service"))
-    #     return Manifest(app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests,
-    #                     helm_chart_repo, helm_chart_repo_path, is_mono_repo, name, service)
-    #
-    # def to_dict(self) -> dict:
-    #     result: dict = {}
-    #     result["app_of_apps"] = from_str(self.app_of_apps)
-    #     result["app_of_apps_service_name"] = from_str(self.app_of_apps_service_name)
-    #     result["app_repo"] = from_str(self.app_repo)
-    #     result["dockerfile"] = from_str(self.dockerfile)
-    #     result["ecr_repository_name"] = from_str(self.ecr_repository_name)
-    #     result["enable_tests"] = from_bool(self.enable_tests)
-    #     result["helm_chart_repo"] = from_str(self.helm_chart_repo)
-    #     result["is_mono_repo"] = from_bool(self.is_mono_repo)
-    #     result["name"] = from_str(self.name)
-    #     result["service"] = from_str(self.service)
-    #     return result
 
 
 @dataclass
@@ -147,6 +76,7 @@ class EnvironmentPromotionPhases:
         result["02-demo"] = to_class(AwsEnvironment, self.demo)
         result["03-prod"] = to_class(AwsEnvironment, self.prod)
         return result
+
 
 @dataclass
 class Environment:
@@ -211,7 +141,8 @@ class EnvironmentWithAdditionalRegions(Environment):
         environment = from_str(obj.get("environment"))
         next_environment = from_str(obj.get("next_environment"))
         with_gate = from_bool(obj.get("with_gate"))
-        return EnvironmentWithAdditionalRegions(additional_aws_regions, approval_for_promotion, aws_region, cluster, enabled, environment, next_environment, with_gate)
+        return EnvironmentWithAdditionalRegions(additional_aws_regions, approval_for_promotion, aws_region, cluster, enabled, environment, next_environment,
+                                                with_gate)
 
     def to_dict(self) -> dict:
         result: dict = {}
@@ -372,22 +303,81 @@ class Slack:
 
 
 @dataclass
-class GitOps:
+class Application:
     app_of_apps: str
     app_of_apps_service_name: str
     app_repo: str
     dockerfile: str
     ecr_repository_name: str
     enable_tests: bool
-    environment_promotion_phases: EnvironmentPromotionPhases
-    environments: Environments
     helm_chart_repo: str
-    helm_chart_service_name: str
+    helm_chart_repo_path: str
     is_mono_repo: bool
     name: str
-    path_monitor: PathMonitor
     service: str
+
+    def __init__(self, app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests,
+                 helm_chart_repo, helm_chart_repo_path, is_mono_repo, name, service):
+        self.app_of_apps = app_of_apps
+        self.app_of_apps_service_name = app_of_apps_service_name
+        self.app_repo = app_repo
+        self.dockerfile = dockerfile
+        self.ecr_repository_name = ecr_repository_name
+        self.enable_tests = enable_tests
+        self.helm_chart_repo = helm_chart_repo
+        self.helm_chart_repo_path = helm_chart_repo_path
+        self.is_mono_repo = is_mono_repo
+        self.name = name
+        self.service = service
+
+    @staticmethod
+    def from_dict(obj: Any) -> 'Application':
+        assert isinstance(obj, dict)
+        app_of_apps = from_str(obj.get("app_of_apps"))
+        app_of_apps_service_name = from_str(obj.get("app_of_apps_service_name"))
+        app_repo = from_str(obj.get("app_repo"))
+        dockerfile = from_str(obj.get("dockerfile"))
+        ecr_repository_name = from_str(obj.get("ecr_repository_name"))
+        enable_tests = from_bool(obj.get("enable_tests"))
+        helm_chart_repo = from_str(obj.get("helm_chart_repo"))
+        helm_chart_repo_path = from_str(obj.get("helm_chart_repo_path", None))
+        is_mono_repo = from_bool(obj.get("is_mono_repo"))
+        name = from_str(obj.get("name"))
+        service = from_str(obj.get("service"))
+        return Application(app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests,
+                           helm_chart_repo, helm_chart_repo_path, is_mono_repo, name, service)
+
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["app_of_apps"] = from_str(self.app_of_apps)
+        result["app_of_apps_service_name"] = from_str(self.app_of_apps_service_name)
+        result["app_repo"] = from_str(self.app_repo)
+        result["dockerfile"] = from_str(self.dockerfile)
+        result["ecr_repository_name"] = from_str(self.ecr_repository_name)
+        result["enable_tests"] = from_bool(self.enable_tests)
+        result["helm_chart_repo"] = from_str(self.helm_chart_repo)
+        result["helm_chart_repo_path"] = from_str(self.helm_chart_repo_path)
+        result["is_mono_repo"] = from_bool(self.is_mono_repo)
+        result["name"] = from_str(self.name)
+        result["service"] = from_str(self.service)
+        return result
+
+
+@dataclass
+class GitOps(Application):
+    environment_promotion_phases: EnvironmentPromotionPhases
+    environments: Environments
+    path_monitor: PathMonitor
     slack: Slack
+
+    def __init__(self, app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests, environment_promotion_phases,
+                 environments, helm_chart_repo, helm_chart_repo_path, is_mono_repo, name, path_monitor, service, slack):
+        super().__init__(app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests, helm_chart_repo, helm_chart_repo_path,
+                         is_mono_repo, name, service)
+        self.environment_promotion_phases = environment_promotion_phases
+        self.environments = environments
+        self.path_monitor = path_monitor
+        self.slack = slack
 
     @staticmethod
     def from_dict(obj: Any) -> 'GitOps':
@@ -401,13 +391,14 @@ class GitOps:
         environment_promotion_phases = EnvironmentPromotionPhases.from_dict(obj.get("environment_promotion_phases"))
         environments = Environments.from_dict(obj.get("environments"))
         helm_chart_repo = from_str(obj.get("helm_chart_repo"))
-        helm_chart_service_name = from_str(obj.get("helm_chart_service_name"))
+        helm_chart_repo_path = from_str(obj.get("helm_chart_repo_path"))
         is_mono_repo = from_bool(obj.get("is_mono_repo"))
         name = from_str(obj.get("name"))
         path_monitor = PathMonitor.from_dict(obj.get("path_monitor"))
         service = from_str(obj.get("service"))
         slack = Slack.from_dict(obj.get("slack"))
-        return GitOps(app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests, environment_promotion_phases, environments, helm_chart_repo, helm_chart_service_name, is_mono_repo, name, path_monitor, service, slack)
+        return GitOps(app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests, environment_promotion_phases,
+                      environments, helm_chart_repo, helm_chart_repo_path, is_mono_repo, name, path_monitor, service, slack)
 
     def to_dict(self) -> dict:
         result: dict = {}
@@ -420,7 +411,7 @@ class GitOps:
         result["environment_promotion_phases"] = to_class(EnvironmentPromotionPhases, self.environment_promotion_phases)
         result["environments"] = to_class(Environments, self.environments)
         result["helm_chart_repo"] = from_str(self.helm_chart_repo)
-        result["helm_chart_service_name"] = from_str(self.helm_chart_service_name)
+        result["helm_chart_repo_path"] = from_str(self.helm_chart_repo_path)
         result["is_mono_repo"] = from_bool(self.is_mono_repo)
         result["name"] = from_str(self.name)
         result["path_monitor"] = to_class(PathMonitor, self.path_monitor)

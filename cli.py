@@ -29,7 +29,7 @@ def main() -> None:
     with open(os.path.join(fixtures_outputs, 'gitops.json'), "w") as file:
         json.dump(gitops_result_dict, file)
 
-    # manifest = Manifest.from_gitops(gitops)
+    # manifest = Application.from_gitops(gitops)
     # manifest_dict = manifest.to_dict()
     # with open(os.path.join(fixtures_outputs, 'manifest.yaml'), "w") as file:
     #     yaml.dump(manifest_dict, file)
