@@ -20,31 +20,6 @@ import inspect
 T = TypeVar("T")
 
 
-def from_int(x: Any) -> int:
-    assert isinstance(x, int) and not isinstance(x, bool)
-    return x
-
-
-def from_str(x: Any) -> str:
-    assert isinstance(x, str)
-    return x
-
-
-def from_bool(x: Any) -> bool:
-    assert isinstance(x, bool)
-    return x
-
-
-def to_class(c: Type[T], x: Any) -> dict:
-    assert isinstance(x, c)
-    return cast(Any, x).to_dict()
-
-
-def from_list(f: Callable[[Any], T], x: Any) -> List[T]:
-    assert isinstance(x, list)
-    return [f(y) for y in x]
-
-
 def parse_dict_to_obj(parse_map: dict, obj: Any):
     if not isinstance(obj, dict):
         raise TypeError(f"Expected dictionary but got {type(obj).__name__}")
@@ -105,6 +80,23 @@ def is_json_object(value: any) -> bool:
         return False
     except Exception:
         return False
+
+
+def recursive_sort_dict_by_key(d):
+    """
+    Recursively sorts a dictionary by its keys.
+
+    :param d: The dictionary to sort.
+    :return: A new dictionary with sorted keys.
+    """
+    if not isinstance(d, dict):
+        return d
+
+    sorted_dict = {}
+    for key in sorted(d):
+        sorted_dict[key] = recursive_sort_dict_by_key(d[key])
+
+    return sorted_dict
 
 
 def isfunction(variable: any) -> bool:

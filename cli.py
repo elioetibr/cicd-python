@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import json
 import os
 
 import yaml
+
+from cicd.GitOps import gitops_from_dict, gitops_to_dict
 
 
 def main() -> None:
@@ -12,14 +15,20 @@ def main() -> None:
     gitops_yaml_file = os.path.join(fixtures, 'gitops.yaml')
     with open(gitops_yaml_file, 'r') as file:
         try:
-            gitops_dict = yaml.safe_load(file)
+            gitops_yaml_file_to_dict = yaml.safe_load(file)
         except Exception as e:
             raise e
 
-    # gitops = gitops_from_dict(gitops_dict)
-    # with open(os.path.join(fixtures_outputs, 'gitops.yaml'), "w") as file:
-    #     yaml.dump(gitops_to_dict(gitops), file)
-    #
+    print(json.dumps(gitops_yaml_file_to_dict, indent=2, sort_keys=True))
+    gitops = gitops_from_dict(gitops_yaml_file_to_dict)
+    print(gitops)
+    gitops_result_dict = gitops_to_dict(gitops)
+    with open(os.path.join(fixtures_outputs, 'gitops.yaml'), "w") as file:
+        yaml.dump(gitops_result_dict, file)
+
+    with open(os.path.join(fixtures_outputs, 'gitops.json'), "w") as file:
+        json.dump(gitops_result_dict, file)
+
     # manifest = Manifest.from_gitops(gitops)
     # manifest_dict = manifest.to_dict()
     # with open(os.path.join(fixtures_outputs, 'manifest.yaml'), "w") as file:

@@ -3,8 +3,10 @@
 
 __test__ = False
 
+from cicd.Utils import recursive_sort_dict_by_key
+
 # pragma: no cover
-TEST_DATA = data = {
+TEST_DATA = recursive_sort_dict_by_key({
     "app_of_apps": "meta-app",
     "app_of_apps_service_name": "meta-service",
     "app_repo": "https://repo.url",
@@ -37,16 +39,6 @@ TEST_DATA = data = {
         }
     },
     "environments": {
-        "dev": {
-            "aws_region": "us-west-1",
-            "cluster": "dev-cluster",
-            "environment": "dev",
-            "next_environment": "demo",
-            "additional_aws_regions": ["us-west-2", "us-east-1"],
-            "approval_for_promotion": False,
-            "enabled": True,
-            "with_gate": True
-        },
         "demo": {
             "aws_region": "us-west-2",
             "cluster": "demo-cluster",
@@ -57,11 +49,21 @@ TEST_DATA = data = {
             "enabled": True,
             "with_gate": False
         },
+        "dev": {
+            "aws_region": "us-west-1",
+            "cluster": "dev-cluster",
+            "environment": "dev",
+            "next_environment": "demo",
+            "additional_aws_regions": ["us-west-2", "us-east-1"],
+            "approval_for_promotion": False,
+            "enabled": True,
+            "with_gate": True
+        },
         "prod": {
             "aws_region": "us-east-1",
             "cluster": "prod-cluster",
             "environment": "prod",
-            "next_environment": "None",
+            "next_environment": "",
             "additional_aws_regions": [],
             "approval_for_promotion": True,
             "enabled": True,
@@ -99,4 +101,4 @@ TEST_DATA = data = {
             }
         }
     }
-}
+})

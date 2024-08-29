@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 VERSION="$(sed -E 's|python.*"~(.*)"|\1|g' < pyproject.toml)"
-
-python"${VERSION}" -m venv ".venv"
-source ".venv/bin/activate"
+python"${VERSION}" -m venv "$(pwd)/.venv"
+sleep 10
+source "$(pwd)/.venv/bin/activate"
 which python
 python -V
 
