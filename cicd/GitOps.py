@@ -1,6 +1,7 @@
 import json
 import os
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from typing import Any, List, TypeVar, Type, cast, Callable, Dict
 
 import yaml
@@ -16,7 +17,7 @@ def from_int(x: Any) -> int:
 
 
 def from_str(x: Any) -> str:
-    assert isinstance(x, str)
+    assert isinstance(x, str | None)
     return x
 
 
@@ -100,7 +101,6 @@ class Environment:
         self.environment = environment
         self.next_environment = next_environment
         self.with_gate = with_gate
-
 
     @staticmethod
     def from_dict(obj: Any) -> 'Environment':
@@ -366,6 +366,36 @@ class Application:
 
 
 @dataclass
+class Version:
+    sem_ver: str
+    version: str
+    major: int
+    minor: int
+    patch: int
+    __regex: str = r"(.*)((\d+)\.(\d+)\.(\d+))(.*)"
+
+    def __init__(self, version: str):
+        self.__set_version(version)
+
+    @staticmethod
+    def __ensure_semantic_version_prefix(version: str) -> str:
+        if version.startswith('v'):
+            return version
+        else:
+            return f'v{version}'
+
+    def __set_version(self, version: str):
+
+        version = self.__ensure_semantic_version_prefix(version)
+        result = re.sub(self.__regex, "\\3.\\4.\\5", version, 0, re.MULTILINE).split('.')
+        self.version = version
+        self.sem_ver = f'{result[0]}.{result[1]}.{result[2]}'
+        self.major = int(result[0])
+        self.minor = int(result[1])
+        self.patch = int(result[2])
+
+
+@dataclass
 class GitOps(Application):
     environment_promotion_phases: EnvironmentPromotionPhases
     environments: Environments
@@ -374,8 +404,8 @@ class GitOps(Application):
 
     def __init__(self, app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests, environment_promotion_phases,
                  environments, helm_chart_repo, helm_chart_repo_path, is_mono_repo, name, path_monitor, service, slack):
-        super().__init__(app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests, helm_chart_repo, helm_chart_repo_path,
-                         is_mono_repo, name, service)
+        super().__init__(app_of_apps, app_of_apps_service_name, app_repo, dockerfile, ecr_repository_name, enable_tests,
+                         helm_chart_repo, helm_chart_repo_path, is_mono_repo, name, service)
         self.environment_promotion_phases = environment_promotion_phases
         self.environments = environments
         self.path_monitor = path_monitor
@@ -433,38 +463,83 @@ class GitOpsManager:
 
 
 class Manifest(Application, Environment):
-    def __init__(self, app: Application, env: Environment):
+    app_version: str
+    helm_chart_version: str
+    branch: str
+
+    def __init__(self, branch: str, app: Application, env: Environment):
         Application.__init__(self, app.app_of_apps, app.app_of_apps_service_name, app.app_repo,
-                                    app.dockerfile, app.ecr_repository_name, app.enable_tests,
-                                    app.helm_chart_repo, app.helm_chart_repo_path,
-                                    app.is_mono_repo, app.name, app.service)
+                             app.dockerfile, app.ecr_repository_name, app.enable_tests,
+                             app.helm_chart_repo, app.helm_chart_repo_path,
+                             app.is_mono_repo, app.name, app.service)
 
         Environment.__init__(self, env.approval_for_promotion, env.aws_region,
-                         env.cluster, env.enabled, env.environment,
-                         env.next_environment, env.with_gate)
+                             env.cluster, env.enabled, env.environment,
+                             env.next_environment, env.with_gate)
+        self.app_version = None
+        self.helm_chart_version = None
+        self.branch = branch
 
+    def to_dict(self) -> dict:
+        result: dict = {}
+        result["app_of_apps"] = from_str(self.app_of_apps)
+        result["app_of_apps_service_name"] = from_str(self.app_of_apps_service_name)
+        result["app_repo"] = from_str(self.app_repo)
+        result["app_version"] = from_str(self.app_version)
+        result["approval_for_promotion"] = from_bool(self.approval_for_promotion)
+        result["aws_region"] = from_str(self.aws_region)
+        result["branch"] = from_str(self.branch)
+        result["cluster"] = from_str(self.cluster)
+        result["dockerfile"] = from_str(self.dockerfile)
+        result["ecr_repository_name"] = from_str(self.ecr_repository_name)
+        result["enable_tests"] = from_bool(self.enable_tests)
+        result["enabled"] = from_bool(self.enabled)
+        result["environment"] = from_str(self.environment)
+        result["helm_chart_repo"] = from_str(self.helm_chart_repo)
+        result["helm_chart_repo_path"] = from_str(self.helm_chart_repo_path)
+        result["helm_chart_version"] = from_str(self.helm_chart_version)
+        result["is_mono_repo"] = from_bool(self.is_mono_repo)
+        result["name"] = from_str(self.name)
+        result["next_environment"] = from_str(self.next_environment)
+        result["service"] = from_str(self.service)
+        result["with_gate"] = from_bool(self.with_gate)
+        return recursive_sort_dict_by_key(result)
 
 
 class ManifestManager:
-    gitops: GitOps
+    gitops: GitOps = field(default_factory=None)
 
     def __init__(self, gitops: GitOps):
         self.gitops = gitops
 
-    def get_manifest(self, environment: str) -> Manifest:
+    def __get_application(self) -> Application:
         try:
             application: Application = cast(Application, self.gitops)
-            environment_with_additional_regions = getattr(self.gitops.environments, environment)
-            environment: Environment = cast(Environment, environment_with_additional_regions)
-            return Manifest(application, environment)
+            return application
+        except AttributeError as ex:
+            raise Exception(ex)
+
+    def __get_environment(self, env: str) -> Environment:
+        try:
+            environment: Environment = getattr(self.gitops.environments, env)
+            return cast(Environment, environment)
         except AttributeError:
             attr_keys = self.gitops.environments.to_dict().keys()
-            raise Exception(f'The Attribute name "{environment}" '
-                            f'does not exist. Available Attribute{'s are' if len(attr_keys) > 1 else ' is'}: '
-                            f'"{', '.join(attr_keys)}"', )
+            raise Exception(f'The Environment "{env}" '
+                            f'does not exist. Available Environment{'s are' if len(attr_keys) > 1 else ' is'}: '
+                            f'"{', '.join(attr_keys)}"')
+
+    def get_manifest(self, branch: str, env: str, version: str) -> Manifest:
+        try:
+            version: Version = Version(version)
+            application: Application = self.__get_application()
+            environment: Environment = self.__get_environment(env)
+            return Manifest(branch, application, environment)
+        except AttributeError as ex:
+            raise Exception(ex)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     fixtures = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'fixtures')
     fixtures_outputs = os.path.join(fixtures, 'outputs')
     gitops_yaml_file = os.path.join(fixtures, 'gitops.yaml')
@@ -474,5 +549,10 @@ if __name__ == '__main__':
         except Exception as e:
             raise e
 
-    result = ManifestManager(GitOpsManager.from_dict(gitops_yaml_file_to_dict)).get_manifest('dev')
+    gitops_manager = GitOpsManager.from_dict(gitops_yaml_file_to_dict)
+    manager = ManifestManager(gitops_manager)
+    manifest = manager.get_manifest('main', 'demos', 'v1.0.0')
+    manifest_dict = manifest.to_dict()
+    print(manifest_dict)
+    print(json.dumps(manifest_dict, sort_keys=True, indent=None, separators=None))
     print()
