@@ -6,23 +6,14 @@ on:
 
 jobs:
   run-tests:
+    name: Run Tests
     runs-on: ubuntu-latest
 
     steps:
-      #  - name: Generate GitHub App Token
-      #    uses: actions/create-github-app-token@v1
-      #    id: app_token
-      #    with:
-      #      app-id: ${{ vars.APP_ID }}
-      #      owner: ${{ github.repository_owner }}
-      #      repositories: ${{ github.event.repository.name }}
-      #      private-key: ${{ secrets.PRIVATE_KEY }}
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-        #  token: ${{ steps.app_token.outputs.token }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -59,11 +50,11 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
 
-      - name: Output reports to the job summary when tests fail
+      - name: Output reports to the job summary
         shell: bash
         run: |
           if [ -f "$REPORT_FILE" ]; then
-            echo "<details><summary>Failed Test Report</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "<details><summary>Test Report</summary>" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             cat "$REPORT_FILE" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY

@@ -1,5 +1,9 @@
+import json
+import os
 from dataclasses import dataclass
 from typing import Any, List, TypeVar, Type, cast, Callable, Dict
+
+import yaml
 
 from cicd.Utils import recursive_sort_dict_by_key
 
@@ -58,23 +62,23 @@ class AwsEnvironment:
 
 @dataclass
 class EnvironmentPromotionPhases:
-    dev: AwsEnvironment
-    demo: AwsEnvironment
-    prod: AwsEnvironment
+    def __init__(self, properties: Dict[str, AwsEnvironment]):
+        for key, value in properties.items():
+            setattr(self, key, value)
 
     @staticmethod
     def from_dict(obj: Any) -> 'EnvironmentPromotionPhases':
         assert isinstance(obj, dict)
-        dev = AwsEnvironment.from_dict(obj.get("01-dev"))
-        demo = AwsEnvironment.from_dict(obj.get("02-demo"))
-        prod = AwsEnvironment.from_dict(obj.get("03-prod"))
-        return EnvironmentPromotionPhases(dev, demo, prod)
+        environments: Dict[str, AwsEnvironment] = {}
+        for key, value in obj.items():
+            environments[key] = AwsEnvironment.from_dict(value)
+        return EnvironmentPromotionPhases(environments)
 
     def to_dict(self) -> dict:
         result: dict = {}
-        result["01-dev"] = to_class(AwsEnvironment, self.dev)
-        result["02-demo"] = to_class(AwsEnvironment, self.demo)
-        result["03-prod"] = to_class(AwsEnvironment, self.prod)
+        result_dict = {key: value for key, value in self.__dict__.items() if isinstance(value, AwsEnvironment)}
+        for key, value in result_dict.items():
+            result[key] = to_class(AwsEnvironment, value)
         return result
 
 
@@ -96,6 +100,7 @@ class Environment:
         self.environment = environment
         self.next_environment = next_environment
         self.with_gate = with_gate
+
 
     @staticmethod
     def from_dict(obj: Any) -> 'Environment':
@@ -127,8 +132,8 @@ class EnvironmentWithAdditionalRegions(Environment):
     additional_aws_regions: List[Any]
 
     def __init__(self, additional_aws_regions, approval_for_promotion, aws_region, cluster, enabled, environment, next_environment, with_gate):
-        self.additional_aws_regions = additional_aws_regions
         super().__init__(approval_for_promotion, aws_region, cluster, enabled, environment, next_environment, with_gate)
+        self.additional_aws_regions = additional_aws_regions
 
     @staticmethod
     def from_dict(obj: Any) -> 'EnvironmentWithAdditionalRegions':
@@ -160,8 +165,6 @@ class EnvironmentWithAdditionalRegions(Environment):
 @dataclass
 class Environments:
     def __init__(self, properties: Dict[str, EnvironmentWithAdditionalRegions]):
-        if properties is None:
-            self.__class__ = None
         for key, value in properties.items():
             setattr(self, key, value)
 
@@ -175,9 +178,8 @@ class Environments:
 
     def to_dict(self) -> dict:
         result: dict = {}
-        for key, value in self.__dict__.items():
-            if key.startswith('__') or key.startswith('_'):
-                continue
+        result_dict = {key: value for key, value in self.__dict__.items() if isinstance(value, EnvironmentWithAdditionalRegions)}
+        for key, value in result_dict.items():
             result[key] = to_class(EnvironmentWithAdditionalRegions, value)
         return result
 
@@ -203,20 +205,23 @@ class Paths:
 
 @dataclass
 class PathMonitor:
-    application: Paths
-    helm_charts: Paths
+    def __init__(self, properties: Dict[str, Paths]):
+        for key, value in properties.items():
+            setattr(self, key, value)
 
     @staticmethod
     def from_dict(obj: Any) -> 'PathMonitor':
         assert isinstance(obj, dict)
-        application = Paths.from_dict(obj.get("application"))
-        helm_charts = Paths.from_dict(obj.get("helm_charts"))
-        return PathMonitor(application, helm_charts)
+        environments: Dict[str, Paths] = {}
+        for key, value in obj.items():
+            environments[key] = Paths.from_dict(value)
+        return PathMonitor(environments)
 
     def to_dict(self) -> dict:
         result: dict = {}
-        result["application"] = to_class(Paths, self.application)
-        result["helm_charts"] = to_class(Paths, self.helm_charts)
+        result_dict = {key: value for key, value in self.__dict__.items() if isinstance(value, Paths)}
+        for key, value in result_dict.items():
+            result[key] = to_class(Paths, value)
         return result
 
 
@@ -260,9 +265,7 @@ class ChannelsConfigurations:
 
 @dataclass
 class Channels:
-    def __init__(self, properties: Dict[str, ChannelsConfigurations]):
-        if properties is None:
-            self.__class__ = None
+    def __init__(self, properties: Dict[str, Paths]):
         for key, value in properties.items():
             setattr(self, key, value)
 
@@ -276,9 +279,8 @@ class Channels:
 
     def to_dict(self) -> dict:
         result: dict = {}
-        for key, value in self.__dict__.items():
-            if key.startswith('__') or key.startswith('_'):
-                continue
+        result_dict = {key: value for key, value in self.__dict__.items() if isinstance(value, ChannelsConfigurations)}
+        for key, value in result_dict.items():
             result[key] = to_class(ChannelsConfigurations, value)
         return result
 
@@ -429,3 +431,48 @@ class GitOpsManager:
     def to_dict(x: GitOps) -> Dict[str, Any]:
         return recursive_sort_dict_by_key(to_class(GitOps, x))
 
+
+class Manifest(Application, Environment):
+    def __init__(self, app: Application, env: Environment):
+        Application.__init__(self, app.app_of_apps, app.app_of_apps_service_name, app.app_repo,
+                                    app.dockerfile, app.ecr_repository_name, app.enable_tests,
+                                    app.helm_chart_repo, app.helm_chart_repo_path,
+                                    app.is_mono_repo, app.name, app.service)
+
+        Environment.__init__(self, env.approval_for_promotion, env.aws_region,
+                         env.cluster, env.enabled, env.environment,
+                         env.next_environment, env.with_gate)
+
+
+
+class ManifestManager:
+    gitops: GitOps
+
+    def __init__(self, gitops: GitOps):
+        self.gitops = gitops
+
+    def get_manifest(self, environment: str) -> Manifest:
+        try:
+            application: Application = cast(Application, self.gitops)
+            environment_with_additional_regions = getattr(self.gitops.environments, environment)
+            environment: Environment = cast(Environment, environment_with_additional_regions)
+            return Manifest(application, environment)
+        except AttributeError:
+            attr_keys = self.gitops.environments.to_dict().keys()
+            raise Exception(f'The Attribute name "{environment}" '
+                            f'does not exist. Available Attribute{'s are' if len(attr_keys) > 1 else ' is'}: '
+                            f'"{', '.join(attr_keys)}"', )
+
+
+if __name__ == '__main__':
+    fixtures = os.path.join(os.path.abspath(os.path.dirname(__file__)), '..', 'fixtures')
+    fixtures_outputs = os.path.join(fixtures, 'outputs')
+    gitops_yaml_file = os.path.join(fixtures, 'gitops.yaml')
+    with open(gitops_yaml_file, 'r') as file:
+        try:
+            gitops_yaml_file_to_dict = yaml.safe_load(file)
+        except Exception as e:
+            raise e
+
+    result = ManifestManager(GitOpsManager.from_dict(gitops_yaml_file_to_dict)).get_manifest('dev')
+    print()
